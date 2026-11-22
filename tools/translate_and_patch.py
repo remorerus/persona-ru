@@ -124,6 +124,10 @@ def force(m):
 s,n=pat.subn(force,s,count=1)
 if n!=1: raise RuntimeError("Could not force EN source branch")
 s=s.replace('const-string v0, "KO"\n\n    iput-object v0, p0, Lcom/rokid/gwansang/MainActivity;->currentLanguage:Ljava/lang/String;','const-string v0, "EN"\n\n    iput-object v0, p0, Lcom/rokid/gwansang/MainActivity;->currentLanguage:Ljava/lang/String;',1)
+# Hardware focus navigation now cycles only between Face (0) and Palm (1).
+s=s.replace(".field private static final MAX_FOCUS_INDEX:I = 0x7", ".field private static final MAX_FOCUS_INDEX:I = 0x2")
+s=s.replace("rem-int/lit8 p1, p1, 0x7", "rem-int/lit8 p1, p1, 0x2")
+s=s.replace("add-int/lit8 p1, p1, 0x6", "add-int/lit8 p1, p1, 0x1")
 main.write_text(s,encoding="utf-8")
 layout=root/"res/layout/activity_main.xml"
 s=layout.read_text(encoding="utf-8")
