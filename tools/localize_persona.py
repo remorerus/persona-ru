@@ -60,6 +60,10 @@ s, focus_changes = re.subn(
 )
 if focus_changes != 1:
     raise SystemExit('Could not restrict focus navigation to Face/Palm')
+s, forward_changes = re.subn(r'rem-int/lit8 p1, p1, 0x7', 'rem-int/lit8 p1, p1, 0x2', s)
+s, backward_changes = re.subn(r'add-int/lit8 p1, p1, 0x6', 'add-int/lit8 p1, p1, 0x1', s, count=1)
+if forward_changes != 2 or backward_changes != 1:
+    raise SystemExit(f'Unexpected focus navigation constants: forward={forward_changes}, backward={backward_changes}')
 main.write_text(s, encoding='utf-8')
 
 # Keep language-selector views inflated (binding IDs stay valid), but hide them.
