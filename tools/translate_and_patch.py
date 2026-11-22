@@ -62,9 +62,12 @@ for key in ("overlay","main"):
    if v in ui: candidates[v]="en"
 for v in ui: candidates[v]="en"
 def offline_en_to_ru(s):
+ for pat,repl in glossary: s=re.sub(pat,repl,s)
  import argostranslate.translate as argos_translate
  translator=argos_translate.get_translation_from_codes("en","ru")
- return translator.translate(s)
+ out=translator.translate(s)
+ for pat,repl in glossary: out=re.sub(pat,repl,out)
+ return out
 
 def trans(s,lang):
  # Lock specialist palmistry/physiognomy terms before general translation.
@@ -112,14 +115,11 @@ for lang in ("en","ko"):
    translated=None
   parts=translated.split(marker) if translated else []
   if len(parts)!=len(batch):
-   # Fallback to individual phrase requests only when a provider changes separators.
-   parts=[]
-   for phrase in batch:
-    err=None
-    for attempt in range(5):
-     try: parts.append(trans(phrase,lang)); break
-     except Exception as exc: err=exc; time.sleep(2*(attempt+1))
-    else: raise RuntimeError(f"Translation failed for {phrase!r}: {err}")
+   # If a provider changes separators, use the local model phrase-by-phrase.
+   if lang=="en":
+    parts=[offline_en_to_ru(phrase) for phrase in batch]
+   else:
+    parts=[trans(phrase,lang) for phrase in batch]
   for phrase,result in zip(batch,parts):
    cache[phrase]=result.strip()
   cachepath.write_text(json.dumps(cache,ensure_ascii=False,indent=2),encoding="utf-8")
