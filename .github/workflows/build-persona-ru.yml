@@ -1,106 +1,67 @@
 name: Build Persona Russian APK
+
 on:
   workflow_dispatch:
   push:
     branches: [main]
     paths:
       - 'tools/**'
-      - 'translations-ru.json'
       - '.github/workflows/build-persona-ru.yml'
+
 permissions:
-  contents: read
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
-      - name: Install Android signing tools
+
+      - name: Set up Android build tools
+        uses: android-actions/setup-android@v3
+
+      - name: Install APKTool and build tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y zipalign apksigner openjdk-17-jdk python3
-      - name: Install current Apktool
-        run: |
+          sudo apt-get install -y openjdk-17-jdk python3
           curl -fL --retry 3 https://github.com/iBotPeaches/Apktool/releases/download/v3.0.3/apktool_3.0.3.jar -o apktool.jar
+          sdkmanager --install "build-tools;35.0.0"
           java -jar apktool.jar --version
-      - name: Install offline English-Russian translation fallback
-        run: |
-          python3 -m venv .venv
-          .venv/bin/pip install --disable-pip-version-check argostranslate
-          .venv/bin/python - <<'PY'
-          import argostranslate.package as package
-          import argostranslate.translate as translate
-          import packaging.version
-          package.update_package_index()
-          matches = [p for p in package.get_available_packages() if p.from_code == "en" and p.to_code == "ru" and p.type == "translate"]
-          if not matches:
-              raise RuntimeError("Argos package index has no English-to-Russian model")
-          import shutil
-          import zipfile
-          model = max(matches, key=lambda p: packaging.version.parse(p.package_version))
-          print("Installing Argos model:", model, model.package_version, flush=True)
-          model_path = model.download()
-          destination = package.settings.package_data_dir / package.argospm_package_name(model)
-          destination.mkdir(parents=True, exist_ok=True)
-          with zipfile.ZipFile(model_path) as archive:
-              names = [n for n in archive.namelist() if n and not n.endswith("/")]
-              prefix = ""
-              if "metadata.json" not in names:
-                  roots = {n.split("/", 1)[0] for n in names if "/" in n}
-                  if len(roots) == 1:
-                      candidate = next(iter(roots)) + "/"
-                      if candidate + "metadata.json" in names:
-                          prefix = candidate
-              root = destination.resolve()
-              for info in archive.infolist():
-                  name = info.filename
-                  if prefix and name.startswith(prefix):
-                      name = name[len(prefix):]
-                  if not name:
-                      continue
-                  target = (destination / name).resolve()
-                  if target != root and root not in target.parents:
-                      raise RuntimeError("Unsafe path in Argos model archive: " + info.filename)
-                  if info.is_dir():
-                      target.mkdir(parents=True, exist_ok=True)
-                  else:
-                      target.parent.mkdir(parents=True, exist_ok=True)
-                      with archive.open(info) as source, target.open("wb") as output:
-                          shutil.copyfileobj(source, output)
-          installed = package.get_installed_packages()
-          print("Installed packages:", [(p.from_code, p.to_code, p.package_version, str(p.package_path)) for p in installed], flush=True)
-          if not any(p.from_code == "en" and p.to_code == "ru" for p in installed):
-              raise RuntimeError("English-to-Russian package was downloaded but not registered")
-          translate.get_installed_languages.cache_clear()
-          print("Installed routes:", [(l.code, [t.to_lang.code for t in l.translations_from]) for l in translate.get_installed_languages()], flush=True)
-          PY
+
       - name: Download and decode original Persona
         run: |
           curl -fL --retry 3 "https://github.com/remorerus/persona-ru/releases/download/v0.91-ru/Persona_v0.91.apk" -o Persona_v0.91.apk
           echo "Original SHA-256: $(sha256sum Persona_v0.91.apk | cut -d' ' -f1)"
           java -jar apktool.jar d -f Persona_v0.91.apk -o decoded
-      - name: Translate all visible content and apply Russian-only interface
-        env:
-          ARGOS_CHUNK_TYPE: MINISBD
-        run: .venv/bin/python tools/translate_and_patch.py decoded
+
+      - name: Apply Russian-only interface and translations
+        run: python3 tools/localize_persona.py decoded tools/translations.json
+
       - name: Build unsigned APK
         run: |
           mkdir -p dist
           java -jar apktool.jar b decoded -o dist/Persona_v0.91-ru-unsigned.apk
+
       - name: Align and sign APK
+        env:
+          BUILD_TOOLS: ${{ env.ANDROID_HOME }}/build-tools/35.0.0
         run: |
           keytool -genkeypair -keystore persona-ru.keystore -alias persona-ru -keyalg RSA -keysize 2048 -validity 10000 -storepass persona123 -keypass persona123 -dname "CN=Persona Russian, O=Community, C=KZ"
-          zipalign -f -p 4 dist/Persona_v0.91-ru-unsigned.apk dist/Persona_v0.91-ru-aligned.apk
-          apksigner sign --ks persona-ru.keystore --ks-key-alias persona-ru --ks-pass pass:persona123 --key-pass pass:persona123 --out dist/Persona_v0.91-ru.apk dist/Persona_v0.91-ru-aligned.apk
-          apksigner verify --verbose dist/Persona_v0.91-ru.apk
+          "$BUILD_TOOLS/zipalign" -f -p 4 dist/Persona_v0.91-ru-unsigned.apk dist/Persona_v0.91-ru-aligned.apk
+          "$BUILD_TOOLS/apksigner" sign --ks persona-ru.keystore --ks-key-alias persona-ru --ks-pass pass:persona123 --key-pass pass:persona123 --out dist/Persona_v0.91-ru.apk dist/Persona_v0.91-ru-aligned.apk
+          "$BUILD_TOOLS/apksigner" verify --verbose --print-certs dist/Persona_v0.91-ru.apk
           sha256sum dist/Persona_v0.91-ru.apk > dist/SHA256.txt
+
+      - name: Publish APK to the existing release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload v0.91-ru dist/Persona_v0.91-ru.apk --clobber
+
       - uses: actions/upload-artifact@v4
         with:
           name: Persona-v0.91-Russian-APK
           path: |
             dist/Persona_v0.91-ru.apk
             dist/SHA256.txt
-            translations-ru.json
-            multilingual-source-corpus.json
-            translation-audit.json
           retention-days: 30
