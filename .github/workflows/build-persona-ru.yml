@@ -26,7 +26,8 @@ jobs:
       - name: Install offline English-Russian translation fallback
         run: |
           python3 -m venv .venv
-          .venv/bin/pip install --disable-pip-version-check argostranslate
+          .venv/bin/pip install --disable-pip-version-check --no-deps argostranslate
+          .venv/bin/pip install --disable-pip-version-check ctranslate2 sentencepiece sacremoses regex requests packaging numpy minisbd PyYAML filelock typing-extensions tqdm
           curl -fL --retry 3 https://argos-net.com/v1/translate-en_ru-1_9.argosmodel -o en_ru.argosmodel
           .venv/bin/python -c "import argostranslate.package; argostranslate.package.install_from_path('en_ru.argosmodel')"
       - name: Download and decode original Persona
