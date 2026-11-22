@@ -44,7 +44,7 @@ for key in ("face","palm"):
   m=rx.search(line)
   if m:
    v=dec(m.group(2))
-   if v.isascii() and re.search("[A-Za-z]",v) and v not in skip and len(v.strip())>1: candidates[v]="en"
+   if re.search("[A-Za-z]",v) and not re.search(r"[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7a3]",v) and v not in skip and len(v.strip())>1: candidates[v]="en"
 for line in files["rule"].read_text(encoding="utf-8").splitlines():
  m=rx.search(line)
  if m:
