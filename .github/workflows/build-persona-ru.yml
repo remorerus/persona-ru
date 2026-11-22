@@ -18,15 +18,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Android build tools
+      - name: Set up Android SDK
         uses: android-actions/setup-android@v3
         with:
-          packages: |
-            platform-tools
-            build-tools;35.0.0
+          packages: 'platform-tools'
 
-      - name: Install APKTool
+      - name: Install Android build tools and APKTool
         run: |
+          sdkmanager --install "build-tools;35.0.0"
           sudo apt-get update
           sudo apt-get install -y openjdk-17-jdk python3
           curl -fL --retry 3 https://github.com/iBotPeaches/Apktool/releases/download/v3.0.3/apktool_3.0.3.jar -o apktool.jar
