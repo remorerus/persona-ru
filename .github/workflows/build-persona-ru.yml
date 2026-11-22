@@ -35,6 +35,8 @@ jobs:
           echo "Original SHA-256: $(sha256sum Persona_v0.91.apk | cut -d' ' -f1)"
           java -jar apktool.jar d -f Persona_v0.91.apk -o decoded
       - name: Translate all visible content and apply Russian-only interface
+        env:
+          ARGOS_CHUNK_TYPE: NONE
         run: .venv/bin/python tools/translate_and_patch.py decoded
       - name: Build unsigned APK
         run: |
