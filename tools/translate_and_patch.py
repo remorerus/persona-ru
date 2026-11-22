@@ -169,7 +169,7 @@ s=re.sub(r'(<LinearLayout[^>]*android:id="@id/languageSelectorBar"[^>]*)(>)',r'\
 s=s.replace('android:text="Auto Save"','android:text="Автосохранение"').replace('android:text="관상"','android:text="Лицо"')
 s=s.replace('android:text="손금"','android:text="Ладонь"').replace('android:text="상세 보기 (터치)"','android:text="Подробнее (коснитесь)"')
 layout.write_text(s,encoding="utf-8")
-audit={"source_strings":len(candidates),"translated_strings":len(cache),"patched_smali_occurrences":changed,"logic_changed":False,
+audit={"source_strings":len(candidates),"translated_strings":len(cache),"patched_smali_occurrences":changed,"analysis_algorithms_changed":False,"navigation":"face/palm only",
 "source_languages":{"English":sum(x=="en" for x in candidates.values()),"Korean":sum(x=="ko" for x in candidates.values())}}
 Path("translation-audit.json").write_text(json.dumps(audit,ensure_ascii=False,indent=2),encoding="utf-8")
 print(json.dumps(audit,ensure_ascii=False,indent=2))
