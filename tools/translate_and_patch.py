@@ -85,6 +85,13 @@ def trans(s,lang):
   req=urllib.request.Request("https://api.mymemory.translated.net/get?"+q,headers={"User-Agent":"Mozilla/5.0","Accept":"application/json"})
   with urllib.request.urlopen(req,timeout=12) as response: data=json.loads(response.read().decode("utf-8"))
   if int(data.get("responseStatus",0))==200: out=data.get("responseData",{}).get("translatedText","")
+ if not out and lang=="en":
+  # Offline Argos model is the final fallback when public translation proxies throttle.
+  try:
+   import argostranslate.translate as argos_translate
+   translator=argos_translate.get_translation_from_codes("en","ru")
+   out=translator.translate(s)
+  except Exception as exc: last=exc; out=""
  if not out: raise RuntimeError("translation providers failed for "+s[:80]+": "+str(last))
  for pat,repl in glossary: out=re.sub(pat,repl,out)
  return re.sub(r"[ \t]{2,}"," ",out).strip()
