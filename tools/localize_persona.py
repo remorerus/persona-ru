@@ -53,8 +53,8 @@ main.write_text(s, encoding='utf-8')
 
 # Restrict hardware focus navigation to Face (0) and Palm (1).
 s, focus_changes = re.subn(
-    r'(\\.field private static final MAX_FOCUS_INDEX:I = )0x7',
-    r'\\g<1>0x2',
+    r'(\.field private static final MAX_FOCUS_INDEX:I = )0x7',
+    r'\g<1>0x2',
     s,
     count=1,
 )
