@@ -33,6 +33,9 @@ for path in smali_files:
             if target is not None:
                 encoded = target.replace('\\', '\\\\').replace('"', '\\"')
                 line = line[:match.start(2)] + encoded + line[match.end(2):]
+                translated_count += 1
+            elif re.search(r'[A-Za-zА-Яа-яЁё\\u3040-\\u30ff\\u3400-\\u9fff\\uac00-\\ud7af]', source):
+                unmapped_strings.add(source)
         out.append(line)
     path.write_text(''.join(out), encoding='utf-8')
 
@@ -54,7 +57,7 @@ s = s.replace(needle, replacement, 1)
 main.write_text(s, encoding='utf-8')
 
 # Keep hardware focus navigation limited to the two analysis modes.
-updated, focus_changes = re.subn(r'(\\.field private static final MAX_FOCUS_INDEX:I = )0x7', r'\\g<1>0x2', s, count=1)
+updated, focus_changes = re.subn(r'(\.field private static final MAX_FOCUS_INDEX:I = )0x7', r'\g<1>0x2', s, count=1)
 if focus_changes != 1:
     raise SystemExit('Could not restrict focus navigation to Face/Palm')
 main.write_text(updated, encoding='utf-8')
