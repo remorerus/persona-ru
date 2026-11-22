@@ -71,14 +71,11 @@ def offline_en_to_ru(s):
   except Exception: pass
   langs=argos_translate.get_installed_languages()
   print("Argos languages:",[(x.code,x.name) for x in langs],flush=True)
-  ARGOS_TRANSLATOR=argos_translate.get_translation_from_codes("en","ru")
+  routes=[(x.code,t.to_lang.code) for x in langs for t in x.translations_from]
+  print("Argos routes:",routes,flush=True)
+  ARGOS_TRANSLATOR=next((t for x in langs if x.code=="en" for t in x.translations_from if t.to_lang.code=="ru"),None)
   if ARGOS_TRANSLATOR is None:
-   source=next((x for x in langs if x.code=="en"),None)
-   target=next((x for x in langs if x.code=="ru"),None)
-   if source is not None and target is not None:
-    ARGOS_TRANSLATOR=source.get_translation(target)
-  if ARGOS_TRANSLATOR is None:
-   raise RuntimeError("Argos English-Russian model not registered")
+   raise RuntimeError("Argos English-Russian model not registered; routes="+str(routes))
  out=ARGOS_TRANSLATOR.translate(s)
  for pat,repl in glossary: out=re.sub(pat,repl,out)
  return out
