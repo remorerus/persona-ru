@@ -61,36 +61,21 @@ for key in ("overlay","main"):
    v=dec(m.group(2))
    if v in ui: candidates[v]="en"
 for v in ui: candidates[v]="en"
+ARGOS_TRANSLATOR=None
 def offline_en_to_ru(s):
+ global ARGOS_TRANSLATOR
  for pat,repl in glossary: s=re.sub(pat,repl,s)
- import argostranslate.translate as argos_translate
- translator=argos_translate.get_translation_from_codes("en","ru")
- out=translator.translate(s)
+ if ARGOS_TRANSLATOR is None:
+  import argostranslate.translate as argos_translate
+  ARGOS_TRANSLATOR=argos_translate.get_translation_from_codes("en","ru")
+ out=ARGOS_TRANSLATOR.translate(s)
  for pat,repl in glossary: out=re.sub(pat,repl,out)
  return out
 
 def trans(s,lang):
- # Lock specialist palmistry/physiognomy terms before general translation.
- for pat,repl in glossary: s=re.sub(pat,repl,s)
- last=None
- out=""
- # Try the stable public instance with Google and DeepL, then use the offline model.
- for engine in ("google","deepl"):
-  try:
-   q=urllib.parse.urlencode({"engine":engine,"from":lang,"to":"ru","text":s})
-   req=urllib.request.Request("https://mozhi.adminforge.de/api/translate?"+q,headers={"User-Agent":"Mozilla/5.0","Accept":"application/json"})
-   with urllib.request.urlopen(req,timeout=6) as response: data=json.loads(response.read().decode("utf-8"))
-   if isinstance(data,str): out=data
-   elif isinstance(data,dict): out=data.get("translated-text") or data.get("translatedText") or data.get("translation") or ""
-   if out and not re.search(r"(?i)(rate.?limit|temporarily unavailable|translation error|error:|blocked|not available)",out): break
-   out=""
-  except Exception as exc: last=exc; out=""
- if not out and lang=="en":
-  try: out=offline_en_to_ru(s)
-  except Exception as exc: last=exc
- if not out: raise RuntimeError("translation providers failed for "+s[:80]+": "+str(last))
- for pat,repl in glossary: out=re.sub(pat,repl,out)
- return re.sub(r"[ \t]{2,}"," ",out).strip()
+ if lang=="en": return offline_en_to_ru(s)
+ if lang=="ko" and s in cache: return cache[s]
+ raise RuntimeError("No approved offline translation for source language "+lang)
 # Batch related phrases to reduce requests and keep each source phrase as a separate segment.
 pending=[(s,lang) for s,lang in candidates.items() if not cache.get(s)]
 batch_no=0
