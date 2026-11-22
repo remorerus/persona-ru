@@ -67,6 +67,12 @@ def offline_en_to_ru(s):
  for pat,repl in glossary: s=re.sub(pat,repl,s)
  if ARGOS_TRANSLATOR is None:
   import argostranslate.translate as argos_translate
+  import argostranslate.sbd as argos_sbd
+  class NewlineSentencizer(argos_sbd.ISentenceBoundaryDetectionModel):
+   def __init__(self,pkg): self.pkg=pkg
+   def split_sentences(self,text): return [part for part in text.splitlines() if part.strip()]
+  argos_sbd.MiniSBDSentencizer=NewlineSentencizer
+  argos_translate.MiniSBDSentencizer=NewlineSentencizer
   try: argos_translate.get_installed_languages.cache_clear()
   except Exception: pass
   langs=argos_translate.get_installed_languages()
