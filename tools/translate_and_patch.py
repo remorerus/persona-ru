@@ -61,37 +61,30 @@ for key in ("overlay","main"):
    v=dec(m.group(2))
    if v in ui: candidates[v]="en"
 for v in ui: candidates[v]="en"
+def offline_en_to_ru(s):
+ import argostranslate.translate as argos_translate
+ translator=argos_translate.get_translation_from_codes("en","ru")
+ return translator.translate(s)
+
 def trans(s,lang):
  # Lock specialist palmistry/physiognomy terms before general translation.
  for pat,repl in glossary: s=re.sub(pat,repl,s)
- # Use a public Mozhi translation proxy first; rotate instances on transient blocks.
  last=None
- for host in ("mozhi.adminforge.de","mozhi.pussthecat.org","mozhi.aryak.me"):
-  for engine in ("google","deepl","yandex"):
-   try:
-    q=urllib.parse.urlencode({"engine":engine,"from":lang,"to":"ru","text":s})
-    req=urllib.request.Request("https://"+host+"/api/translate?"+q,headers={"User-Agent":"Mozilla/5.0","Accept":"application/json"})
-    with urllib.request.urlopen(req,timeout=8) as response: data=json.loads(response.read().decode("utf-8"))
-    if isinstance(data,str): out=data
-    elif isinstance(data,dict): out=data.get("translated-text") or data.get("translatedText") or data.get("translation") or ""
-    else: out=""
-    if out and not re.search(r"(?i)(rate.?limit|temporarily unavailable|translation error|error:|blocked|not available)",out): break
-    out=""
-   except Exception as exc: last=exc; out=""
-  if out: break
- if not out:
-  # MyMemory fallback; it has a smaller per-request limit, so use only short items.
-  q=urllib.parse.urlencode({"q":s,"langpair":lang+"|ru","mt":"1"})
-  req=urllib.request.Request("https://api.mymemory.translated.net/get?"+q,headers={"User-Agent":"Mozilla/5.0","Accept":"application/json"})
-  with urllib.request.urlopen(req,timeout=12) as response: data=json.loads(response.read().decode("utf-8"))
-  if int(data.get("responseStatus",0))==200: out=data.get("responseData",{}).get("translatedText","")
- if not out and lang=="en":
-  # Offline Argos model is the final fallback when public translation proxies throttle.
+ out=""
+ # Try the stable public instance with Google and DeepL, then use the offline model.
+ for engine in ("google","deepl"):
   try:
-   import argostranslate.translate as argos_translate
-   translator=argos_translate.get_translation_from_codes("en","ru")
-   out=translator.translate(s)
+   q=urllib.parse.urlencode({"engine":engine,"from":lang,"to":"ru","text":s})
+   req=urllib.request.Request("https://mozhi.adminforge.de/api/translate?"+q,headers={"User-Agent":"Mozilla/5.0","Accept":"application/json"})
+   with urllib.request.urlopen(req,timeout=6) as response: data=json.loads(response.read().decode("utf-8"))
+   if isinstance(data,str): out=data
+   elif isinstance(data,dict): out=data.get("translated-text") or data.get("translatedText") or data.get("translation") or ""
+   if out and not re.search(r"(?i)(rate.?limit|temporarily unavailable|translation error|error:|blocked|not available)",out): break
+   out=""
   except Exception as exc: last=exc; out=""
+ if not out and lang=="en":
+  try: out=offline_en_to_ru(s)
+  except Exception as exc: last=exc
  if not out: raise RuntimeError("translation providers failed for "+s[:80]+": "+str(last))
  for pat,repl in glossary: out=re.sub(pat,repl,out)
  return re.sub(r"[ \t]{2,}"," ",out).strip()
