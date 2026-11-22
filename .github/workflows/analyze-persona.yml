@@ -1,0 +1,54 @@
+name: Analyze Persona APK
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install APK analysis tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y apktool aapt unzip zipinfo
+      - name: Download original APK from Release
+        run: |
+          curl -fL --retry 3 \
+            "https://github.com/remorerus/persona-ru/releases/download/v0.91-ru/Persona_v0.91.apk" \
+            -o Persona_v0.91.apk
+          echo "APK_SHA256=$(sha256sum Persona_v0.91.apk | cut -d' ' -f1)" >> "$GITHUB_ENV"
+          echo "APK_SIZE=$(stat -c%s Persona_v0.91.apk)" >> "$GITHUB_ENV"
+      - name: Decode APK and collect resources
+        run: |
+          mkdir -p analysis
+          apktool d -f Persona_v0.91.apk -o analysis/decoded
+          unzip -Z1 Persona_v0.91.apk > analysis/archive-file-list.txt
+          aapt dump badging Persona_v0.91.apk > analysis/apk-badging.txt
+          find analysis/decoded/res -type f -name '*.xml' -print > analysis/resource-xml-list.txt
+          find analysis/decoded/res -type f -name '*.xml' -print0 | xargs -0 grep -nIhE '<string|<item|<plurals|<string-array|<integer-array' > analysis/all-resource-strings.txt || true
+          find analysis/decoded -type f -name '*.smali' -print0 | xargs -0 grep -nIhE 'const-string|\.source|\.class' > analysis/smali-string-references.txt || true
+          {
+            echo '# Persona APK analysis'
+            echo
+            echo "- SHA-256: $APK_SHA256"
+            echo "- Size: $APK_SIZE bytes"
+            echo '- APK decoding: successful'
+            echo "- XML resource files: $(find analysis/decoded/res -type f -name '*.xml' | wc -l)"
+            echo '- Resource directories:'
+            find analysis/decoded/res -mindepth 1 -maxdepth 1 -type d -printf '  - %f\n' | sort
+            echo
+            echo '## Package metadata'
+            echo '```'
+            cat analysis/apk-badging.txt
+            echo '```'
+          } | tee analysis/REPORT.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload decoded APK and analysis report
+        uses: actions/upload-artifact@v4
+        with:
+          name: persona-apk-analysis
+          path: analysis/
+          if-no-files-found: error
+          retention-days: 7
