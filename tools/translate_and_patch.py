@@ -75,6 +75,21 @@ def offline_en_to_ru(s):
   print("Argos routes:",routes,flush=True)
   ARGOS_TRANSLATOR=next((t for x in langs if x.code=="en" for t in x.translations_from if t.to_lang.code=="ru"),None)
   if ARGOS_TRANSLATOR is None:
+   # Some Argos packages unpack metadata.json directly into package_data_dir.
+   # Load that valid package directory directly if the registry scan misses it.
+   import argostranslate.package as argos_package
+   package_dirs=[argos_package.settings.package_data_dir]
+   package_dirs += [p for p in argos_package.settings.package_data_dir.iterdir() if p.is_dir()]
+   for package_dir in package_dirs:
+    if (package_dir/"metadata.json").exists():
+     pkg=argos_package.Package(package_dir)
+     if pkg.from_code=="en" and pkg.to_code=="ru":
+      source=argos_translate.Language(pkg.from_code,pkg.from_name)
+      target=argos_translate.Language(pkg.to_code,pkg.to_name)
+      ARGOS_TRANSLATOR=argos_translate.PackageTranslation(source,target,pkg)
+      print("Loaded Argos model directly from:",package_dir,flush=True)
+      break
+  if ARGOS_TRANSLATOR is None:
    raise RuntimeError("Argos English-Russian model not registered; routes="+str(routes))
  out=ARGOS_TRANSLATOR.translate(s)
  for pat,repl in glossary: out=re.sub(pat,repl,out)
