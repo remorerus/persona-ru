@@ -35,11 +35,43 @@ jobs:
           matches = [p for p in package.get_available_packages() if p.from_code == "en" and p.to_code == "ru" and p.type == "translate"]
           if not matches:
               raise RuntimeError("Argos package index has no English-to-Russian model")
+          import shutil
+          import zipfile
           model = max(matches, key=lambda p: packaging.version.parse(p.package_version))
           print("Installing Argos model:", model, model.package_version, flush=True)
-          package.install_from_path(model.download())
+          model_path = model.download()
+          destination = package.settings.package_data_dir / package.argospm_package_name(model)
+          destination.mkdir(parents=True, exist_ok=True)
+          with zipfile.ZipFile(model_path) as archive:
+              names = [n for n in archive.namelist() if n and not n.endswith("/")]
+              prefix = ""
+              if "metadata.json" not in names:
+                  roots = {n.split("/", 1)[0] for n in names if "/" in n}
+                  if len(roots) == 1:
+                      candidate = next(iter(roots)) + "/"
+                      if candidate + "metadata.json" in names:
+                          prefix = candidate
+              root = destination.resolve()
+              for info in archive.infolist():
+                  name = info.filename
+                  if prefix and name.startswith(prefix):
+                      name = name[len(prefix):]
+                  if not name:
+                      continue
+                  target = (destination / name).resolve()
+                  if target != root and root not in target.parents:
+                      raise RuntimeError("Unsafe path in Argos model archive: " + info.filename)
+                  if info.is_dir():
+                      target.mkdir(parents=True, exist_ok=True)
+                  else:
+                      target.parent.mkdir(parents=True, exist_ok=True)
+                      with archive.open(info) as source, target.open("wb") as output:
+                          shutil.copyfileobj(source, output)
+          installed = package.get_installed_packages()
+          print("Installed packages:", [(p.from_code, p.to_code, p.package_version, str(p.package_path)) for p in installed], flush=True)
+          if not any(p.from_code == "en" and p.to_code == "ru" for p in installed):
+              raise RuntimeError("English-to-Russian package was downloaded but not registered")
           translate.get_installed_languages.cache_clear()
-          print("Installed packages:", [(p.from_code, p.to_code, p.package_version) for p in package.get_installed_packages()], flush=True)
           print("Installed routes:", [(l.code, [t.to_lang.code for t in l.translations_from]) for l in translate.get_installed_languages()], flush=True)
           PY
       - name: Download and decode original Persona
