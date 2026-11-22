@@ -21,7 +21,9 @@ jobs:
       - name: Set up Android build tools
         uses: android-actions/setup-android@v3
         with:
-          packages: 'platform-tools;build-tools;35.0.0'
+          packages: |
+            platform-tools
+            build-tools;35.0.0
 
       - name: Install APKTool
         run: |
@@ -45,9 +47,8 @@ jobs:
           java -jar apktool.jar b decoded -o dist/Persona_v0.91-ru-unsigned.apk
 
       - name: Align and sign APK
-        env:
-          BUILD_TOOLS: ${{ env.ANDROID_HOME }}/build-tools/35.0.0
         run: |
+          BUILD_TOOLS="$ANDROID_HOME/build-tools/35.0.0"
           keytool -genkeypair -keystore persona-ru.keystore -alias persona-ru -keyalg RSA -keysize 2048 -validity 10000 -storepass persona123 -keypass persona123 -dname "CN=Persona Russian, O=Community, C=KZ"
           "$BUILD_TOOLS/zipalign" -f -p 4 dist/Persona_v0.91-ru-unsigned.apk dist/Persona_v0.91-ru-aligned.apk
           "$BUILD_TOOLS/apksigner" sign --ks persona-ru.keystore --ks-key-alias persona-ru --ks-pass pass:persona123 --key-pass pass:persona123 --out dist/Persona_v0.91-ru.apk dist/Persona_v0.91-ru-aligned.apk
