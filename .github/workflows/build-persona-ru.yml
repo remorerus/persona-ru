@@ -27,7 +27,7 @@ jobs:
         run: |
           python3 -m venv .venv
           .venv/bin/pip install --disable-pip-version-check argostranslate
-          curl -fL --retry 3 https://argos-net.com/v1/translate-en_ru-1_9.argosmodel -o en_ru.argosmodel
+          curl -fL --retry 3 https://data.argosopentech.com/argospm/v1/translate-en_ru-1_9.argosmodel -o en_ru.argosmodel
           .venv/bin/python -c "import argostranslate.package; argostranslate.package.install_from_path('en_ru.argosmodel')"
       - name: Download and decode original Persona
         run: |
