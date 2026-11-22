@@ -1,0 +1,48 @@
+name: Build Persona Russian APK
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'tools/**'
+      - 'translations-ru.json'
+      - '.github/workflows/build-persona-ru.yml'
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Android APK tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y apktool zipalign apksigner openjdk-17-jdk python3
+      - name: Download and decode original Persona
+        run: |
+          curl -fL --retry 3 "https://github.com/remorerus/persona-ru/releases/download/v0.91-ru/Persona_v0.91.apk" -o Persona_v0.91.apk
+          apktool d -f Persona_v0.91.apk -o decoded
+      - name: Translate all visible content and apply Russian-only interface
+        run: python3 tools/translate_and_patch.py decoded
+      - name: Build unsigned APK
+        run: |
+          mkdir -p dist
+          apktool b decoded -o dist/Persona_v0.91-ru-unsigned.apk
+      - name: Align and sign APK
+        run: |
+          keytool -genkeypair -keystore persona-ru.keystore -alias persona-ru -keyalg RSA -keysize 2048 -validity 10000 -storepass persona123 -keypass persona123 -dname "CN=Persona Russian, O=Community, C=KZ"
+          zipalign -f -p 4 dist/Persona_v0.91-ru-unsigned.apk dist/Persona_v0.91-ru-aligned.apk
+          apksigner sign --ks persona-ru.keystore --ks-key-alias persona-ru --ks-pass pass:persona123 --key-pass pass:persona123 --out dist/Persona_v0.91-ru.apk dist/Persona_v0.91-ru-aligned.apk
+          apksigner verify --verbose dist/Persona_v0.91-ru.apk
+          sha256sum dist/Persona_v0.91-ru.apk > dist/SHA256.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Persona-v0.91-Russian-APK
+          path: |
+            dist/Persona_v0.91-ru.apk
+            dist/SHA256.txt
+            translations-ru.json
+            multilingual-source-corpus.json
+            translation-audit.json
+          retention-days: 30
