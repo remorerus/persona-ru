@@ -26,8 +26,7 @@ jobs:
       - name: Install offline English-Russian translation fallback
         run: |
           python3 -m venv .venv
-          .venv/bin/pip install --disable-pip-version-check --no-deps argostranslate
-          .venv/bin/pip install --disable-pip-version-check ctranslate2 sentencepiece sacremoses regex requests packaging numpy minisbd PyYAML filelock typing-extensions tqdm
+          .venv/bin/pip install --disable-pip-version-check argostranslate
           .venv/bin/python - <<'PY'
           import argostranslate.package as package
           import argostranslate.translate as translate
