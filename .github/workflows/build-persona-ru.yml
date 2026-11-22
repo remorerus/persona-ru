@@ -81,7 +81,7 @@ jobs:
           java -jar apktool.jar d -f Persona_v0.91.apk -o decoded
       - name: Translate all visible content and apply Russian-only interface
         env:
-          ARGOS_CHUNK_TYPE: NONE
+          ARGOS_CHUNK_TYPE: MINISBD
         run: .venv/bin/python tools/translate_and_patch.py decoded
       - name: Build unsigned APK
         run: |
