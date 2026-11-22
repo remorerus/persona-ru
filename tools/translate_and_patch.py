@@ -58,6 +58,8 @@ for key in ("overlay","main"):
    if v in ui: candidates[v]="en"
 for v in ui: candidates[v]="en"
 def trans(s,lang):
+ # Lock specialist palmistry/physiognomy terms before general translation.
+ for pat,repl in glossary: s=re.sub(pat,repl,s)
  # Use a public Mozhi translation proxy first; rotate instances on transient blocks.
  last=None
  for host in ("mozhi.aryak.me","mozhi.adminforge.de","mozhi.pussthecat.org"):
@@ -69,7 +71,7 @@ def trans(s,lang):
     if isinstance(data,str): out=data
     elif isinstance(data,dict): out=data.get("translated-text") or data.get("translatedText") or data.get("translation") or ""
     else: out=""
-    if out and not re.search(r"(?i)(rate.?limit|temporarily unavailable|translation error)",out): break
+    if out and not re.search(r"(?i)(rate.?limit|temporarily unavailable|translation error|error:|blocked|not available)",out): break
     out=""
    except Exception as exc: last=exc; out=""
   if out: break
