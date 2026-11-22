@@ -35,7 +35,11 @@ glossary=[
 (r"(?i)\bEarth Type\b","тип Земли"),(r"(?i)\bMetal Type\b","тип Металла"),
 (r"(?i)\bWater Type\b","тип Воды"),(r"(?i)\bHeaven Zone\b","зона Неба"),
 (r"(?i)\bHuman Zone\b","зона Человека"),(r"(?i)\bphiltrum\b","желобок верхней губы"),
-(r"(?i)\bJing\b","Цзин")]
+(r"(?i)\bJing\b","Цзин"),(r"(?i)\bHollow Hand\b","впалая ладонь"),
+(r"(?i)\bPalm Center\b","центр ладони"),(r"(?i)\bWill Phalange\b","фаланга воли"),
+(r"(?i)\bLogic Phalange\b","логическая фаланга"),(r"(?i)\bWide Finger Spacing\b","широко расставленные пальцы"),
+(r"(?i)\bRight-Angle Thumb\b","большой палец, раскрытый под прямым углом"),
+(r"(?i)\bOverall\b","общая характеристика")]
 cachepath=Path("translations-ru.json")
 cache=json.loads(cachepath.read_text(encoding="utf-8")) if cachepath.exists() else {}
 candidates={}
