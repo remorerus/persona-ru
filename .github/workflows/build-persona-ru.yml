@@ -23,13 +23,19 @@ jobs:
         run: |
           curl -fL --retry 3 https://github.com/iBotPeaches/Apktool/releases/download/v3.0.3/apktool_3.0.3.jar -o apktool.jar
           java -jar apktool.jar --version
+      - name: Install offline English-Russian translation fallback
+        run: |
+          python3 -m venv .venv
+          .venv/bin/pip install --disable-pip-version-check argostranslate
+          curl -fL --retry 3 https://argos-net.com/v1/translate-en_ru-1_9.argosmodel -o en_ru.argosmodel
+          .venv/bin/python -c "import argostranslate.package; argostranslate.package.install_from_path('en_ru.argosmodel')"
       - name: Download and decode original Persona
         run: |
           curl -fL --retry 3 "https://github.com/remorerus/persona-ru/releases/download/v0.91-ru/Persona_v0.91.apk" -o Persona_v0.91.apk
           echo "Original SHA-256: $(sha256sum Persona_v0.91.apk | cut -d' ' -f1)"
           java -jar apktool.jar d -f Persona_v0.91.apk -o decoded
       - name: Translate all visible content and apply Russian-only interface
-        run: python3 tools/translate_and_patch.py decoded
+        run: .venv/bin/python tools/translate_and_patch.py decoded
       - name: Build unsigned APK
         run: |
           mkdir -p dist
