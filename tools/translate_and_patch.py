@@ -58,11 +58,25 @@ for key in ("overlay","main"):
    if v in ui: candidates[v]="en"
 for v in ui: candidates[v]="en"
 def trans(s,lang):
- q=urllib.parse.urlencode({"client":"gtx","sl":lang,"tl":"ru","dt":"t","q":s})
- req=urllib.request.Request("https://translate.googleapis.com/translate_a/single?"+q,headers={"User-Agent":"Mozilla/5.0"})
- with urllib.request.urlopen(req,timeout=25) as r: data=json.loads(r.read().decode())
- out="".join(x[0] for x in data[0] if x and x[0])
- if not out: raise RuntimeError("empty translation "+s[:80])
+ # Use a public Mozhi translation proxy first; rotate instances on transient blocks.
+ last=None
+ for host in ("mozhi.adminforge.de","mozhi.pussthecat.org"):
+  try:
+   q=urllib.parse.urlencode({"engine":"google","from":lang,"to":"ru","text":s})
+   req=urllib.request.Request("https://"+host+"/api/translate?"+q,headers={"User-Agent":"Mozilla/5.0","Accept":"application/json"})
+   with urllib.request.urlopen(req,timeout=35) as response: data=json.loads(response.read().decode("utf-8"))
+   if isinstance(data,str): out=data
+   elif isinstance(data,dict): out=data.get("translated-text") or data.get("translatedText") or data.get("translation") or ""
+   else: out=""
+   if out: break
+  except Exception as exc: last=exc; out=""
+ if not out:
+  # MyMemory fallback; it has a smaller per-request limit, so use only short items.
+  q=urllib.parse.urlencode({"q":s,"langpair":lang+"|ru","mt":"1"})
+  req=urllib.request.Request("https://api.mymemory.translated.net/get?"+q,headers={"User-Agent":"Mozilla/5.0","Accept":"application/json"})
+  with urllib.request.urlopen(req,timeout=35) as response: data=json.loads(response.read().decode("utf-8"))
+  if int(data.get("responseStatus",0))==200: out=data.get("responseData",{}).get("translatedText","")
+ if not out: raise RuntimeError("translation providers failed for "+s[:80]+": "+str(last))
  for pat,repl in glossary: out=re.sub(pat,repl,out)
  return re.sub(r"[ \t]{2,}"," ",out).strip()
 for i,(s,lang) in enumerate(candidates.items(),1):
@@ -73,7 +87,7 @@ for i,(s,lang) in enumerate(candidates.items(),1):
    except Exception as e: err=e; time.sleep(2*(n+1))
   else: raise RuntimeError(f"Translation failed for {s!r}: {err}")
  if i%25==0: print(f"Translated {i}/{len(candidates)}",flush=True)
- time.sleep(.12)
+ time.sleep(.35)
 # Keep the original non-Russian variants as a source corpus for audit.
 corpus={}
 for key in ("face","palm","rule"):
