@@ -73,9 +73,21 @@ def offline_en_to_ru(s):
  return out
 
 def trans(s,lang):
- if lang=="en": return offline_en_to_ru(s)
+ for pat,repl in glossary: s=re.sub(pat,repl,s)
+ if lang=="en":
+  try:
+   q=urllib.parse.urlencode({"client":"gtx","sl":"en","tl":"ru","dt":"t","q":s})
+   req=urllib.request.Request("https://translate.googleapis.com/translate_a/single?"+q,headers={"User-Agent":"Mozilla/5.0","Referer":"https://translate.google.com/","Accept":"application/json"})
+   with urllib.request.urlopen(req,timeout=8) as response: data=json.loads(response.read().decode("utf-8"))
+   out="".join(seg[0] for seg in data[0] if isinstance(seg,list) and seg and isinstance(seg[0],str))
+   if out:
+    for pat,repl in glossary: out=re.sub(pat,repl,out)
+    return re.sub(r"[ \t]{2,}"," ",out).strip()
+  except Exception:
+   pass
+  return offline_en_to_ru(s)
  if lang=="ko" and s in cache: return cache[s]
- raise RuntimeError("No approved offline translation for source language "+lang)
+ raise RuntimeError("No approved translation for source language "+lang)
 # Batch related phrases to reduce requests and keep each source phrase as a separate segment.
 pending=[(s,lang) for s,lang in candidates.items() if not cache.get(s)]
 batch_no=0
