@@ -67,7 +67,18 @@ def offline_en_to_ru(s):
  for pat,repl in glossary: s=re.sub(pat,repl,s)
  if ARGOS_TRANSLATOR is None:
   import argostranslate.translate as argos_translate
+  try: argos_translate.get_installed_languages.cache_clear()
+  except Exception: pass
+  langs=argos_translate.get_installed_languages()
+  print("Argos languages:",[(x.code,x.name) for x in langs],flush=True)
   ARGOS_TRANSLATOR=argos_translate.get_translation_from_codes("en","ru")
+  if ARGOS_TRANSLATOR is None:
+   source=next((x for x in langs if x.code=="en"),None)
+   target=next((x for x in langs if x.code=="ru"),None)
+   if source is not None and target is not None:
+    ARGOS_TRANSLATOR=source.get_translation(target)
+  if ARGOS_TRANSLATOR is None:
+   raise RuntimeError("Argos English-Russian model not registered")
  out=ARGOS_TRANSLATOR.translate(s)
  for pat,repl in glossary: out=re.sub(pat,repl,out)
  return out
@@ -113,10 +124,7 @@ for lang in ("en","ko"):
   parts=translated.split(marker) if translated else []
   if len(parts)!=len(batch):
    # If a provider changes separators, use the local model phrase-by-phrase.
-   if lang=="en":
-    parts=[offline_en_to_ru(phrase) for phrase in batch]
-   else:
-    parts=[trans(phrase,lang) for phrase in batch]
+   parts=[trans(phrase,lang) for phrase in batch]
   for phrase,result in zip(batch,parts):
    cache[phrase]=result.strip()
   cachepath.write_text(json.dumps(cache,ensure_ascii=False,indent=2),encoding="utf-8")
