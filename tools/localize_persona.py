@@ -51,6 +51,17 @@ if needle not in s:
 s = s.replace(needle, replacement, 1)
 main.write_text(s, encoding='utf-8')
 
+# Restrict hardware focus navigation to Face (0) and Palm (1).
+s, focus_changes = re.subn(
+    r'(\\.field private static final MAX_FOCUS_INDEX:I = )0x7',
+    r'\\g<1>0x2',
+    s,
+    count=1,
+)
+if focus_changes != 1:
+    raise SystemExit('Could not restrict focus navigation to Face/Palm')
+main.write_text(s, encoding='utf-8')
+
 # Keep language-selector views inflated (binding IDs stay valid), but hide them.
 layout = ROOT / 'res/layout/activity_main.xml'
 xml = layout.read_text(encoding='utf-8')
