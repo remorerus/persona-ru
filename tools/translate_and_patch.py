@@ -66,12 +66,12 @@ def trans(s,lang):
  for pat,repl in glossary: s=re.sub(pat,repl,s)
  # Use a public Mozhi translation proxy first; rotate instances on transient blocks.
  last=None
- for host in ("mozhi.aryak.me","mozhi.adminforge.de","mozhi.pussthecat.org"):
+ for host in ("mozhi.adminforge.de","mozhi.pussthecat.org","mozhi.aryak.me"):
   for engine in ("google","deepl","yandex"):
    try:
     q=urllib.parse.urlencode({"engine":engine,"from":lang,"to":"ru","text":s})
     req=urllib.request.Request("https://"+host+"/api/translate?"+q,headers={"User-Agent":"Mozilla/5.0","Accept":"application/json"})
-    with urllib.request.urlopen(req,timeout=12) as response: data=json.loads(response.read().decode("utf-8"))
+    with urllib.request.urlopen(req,timeout=8) as response: data=json.loads(response.read().decode("utf-8"))
     if isinstance(data,str): out=data
     elif isinstance(data,dict): out=data.get("translated-text") or data.get("translatedText") or data.get("translation") or ""
     else: out=""
