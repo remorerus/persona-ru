@@ -84,15 +84,43 @@ def trans(s,lang):
  if not out: raise RuntimeError("translation providers failed for "+s[:80]+": "+str(last))
  for pat,repl in glossary: out=re.sub(pat,repl,out)
  return re.sub(r"[ \t]{2,}"," ",out).strip()
-for i,(s,lang) in enumerate(candidates.items(),1):
- if s not in cache or not cache[s]:
-  err=None
-  for n in range(5):
-   try: cache[s]=trans(s,lang); cachepath.write_text(json.dumps(cache,ensure_ascii=False,indent=2),encoding="utf-8"); break
-   except Exception as e: err=e; time.sleep(2*(n+1))
-  else: raise RuntimeError(f"Translation failed for {s!r}: {err}")
- if i%25==0: print(f"Translated {i}/{len(candidates)}",flush=True)
- time.sleep(.35)
+# Batch related phrases to reduce requests and keep each source phrase as a separate segment.
+pending=[(s,lang) for s,lang in candidates.items() if not cache.get(s)]
+batch_no=0
+for lang in ("en","ko"):
+ group=[s for s,source_lang in pending if source_lang==lang]
+ batches=[]
+ current=[]
+ current_len=0
+ for phrase in group:
+  if current and (len(current)>=8 or current_len+len(phrase)>2600):
+   batches.append(current); current=[]; current_len=0
+  current.append(phrase); current_len+=len(phrase)
+ if current: batches.append(current)
+ for batch in batches:
+  batch_no+=1
+  marker=f"ZXQPERSONADELIM{batch_no}ZXQ"
+  combined=("\\n"+marker+"\\n").join(batch)
+  translated=None
+  try:
+   translated=trans(combined,lang)
+  except Exception:
+   translated=None
+  parts=translated.split(marker) if translated else []
+  if len(parts)!=len(batch):
+   # Fallback to individual phrase requests only when a provider changes separators.
+   parts=[]
+   for phrase in batch:
+    err=None
+    for attempt in range(5):
+     try: parts.append(trans(phrase,lang)); break
+     except Exception as exc: err=exc; time.sleep(2*(attempt+1))
+    else: raise RuntimeError(f"Translation failed for {phrase!r}: {err}")
+  for phrase,result in zip(batch,parts):
+   cache[phrase]=result.strip()
+  cachepath.write_text(json.dumps(cache,ensure_ascii=False,indent=2),encoding="utf-8")
+  print(f"Translated batch {batch_no}: {len(cache)}/{len(candidates)} strings",flush=True)
+  time.sleep(.5)
 # Keep the original non-Russian variants as a source corpus for audit.
 corpus={}
 for key in ("face","palm","rule"):
