@@ -20,13 +20,14 @@ jobs:
 
       - name: Set up Android build tools
         uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools;build-tools;35.0.0'
 
-      - name: Install APKTool and build tools
+      - name: Install APKTool
         run: |
           sudo apt-get update
           sudo apt-get install -y openjdk-17-jdk python3
           curl -fL --retry 3 https://github.com/iBotPeaches/Apktool/releases/download/v3.0.3/apktool_3.0.3.jar -o apktool.jar
-          sdkmanager --install "build-tools;35.0.0"
           java -jar apktool.jar --version
 
       - name: Download and decode original Persona
