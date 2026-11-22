@@ -60,21 +60,24 @@ for v in ui: candidates[v]="en"
 def trans(s,lang):
  # Use a public Mozhi translation proxy first; rotate instances on transient blocks.
  last=None
- for host in ("mozhi.adminforge.de","mozhi.pussthecat.org"):
-  try:
-   q=urllib.parse.urlencode({"engine":"google","from":lang,"to":"ru","text":s})
-   req=urllib.request.Request("https://"+host+"/api/translate?"+q,headers={"User-Agent":"Mozilla/5.0","Accept":"application/json"})
-   with urllib.request.urlopen(req,timeout=35) as response: data=json.loads(response.read().decode("utf-8"))
-   if isinstance(data,str): out=data
-   elif isinstance(data,dict): out=data.get("translated-text") or data.get("translatedText") or data.get("translation") or ""
-   else: out=""
-   if out: break
-  except Exception as exc: last=exc; out=""
+ for host in ("mozhi.aryak.me","mozhi.adminforge.de","mozhi.pussthecat.org"):
+  for engine in ("google","deepl","yandex"):
+   try:
+    q=urllib.parse.urlencode({"engine":engine,"from":lang,"to":"ru","text":s})
+    req=urllib.request.Request("https://"+host+"/api/translate?"+q,headers={"User-Agent":"Mozilla/5.0","Accept":"application/json"})
+    with urllib.request.urlopen(req,timeout=12) as response: data=json.loads(response.read().decode("utf-8"))
+    if isinstance(data,str): out=data
+    elif isinstance(data,dict): out=data.get("translated-text") or data.get("translatedText") or data.get("translation") or ""
+    else: out=""
+    if out and not re.search(r"(?i)(rate.?limit|temporarily unavailable|translation error)",out): break
+    out=""
+   except Exception as exc: last=exc; out=""
+  if out: break
  if not out:
   # MyMemory fallback; it has a smaller per-request limit, so use only short items.
   q=urllib.parse.urlencode({"q":s,"langpair":lang+"|ru","mt":"1"})
   req=urllib.request.Request("https://api.mymemory.translated.net/get?"+q,headers={"User-Agent":"Mozilla/5.0","Accept":"application/json"})
-  with urllib.request.urlopen(req,timeout=35) as response: data=json.loads(response.read().decode("utf-8"))
+  with urllib.request.urlopen(req,timeout=12) as response: data=json.loads(response.read().decode("utf-8"))
   if int(data.get("responseStatus",0))==200: out=data.get("responseData",{}).get("translatedText","")
  if not out: raise RuntimeError("translation providers failed for "+s[:80]+": "+str(last))
  for pat,repl in glossary: out=re.sub(pat,repl,out)
