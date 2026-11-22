@@ -100,7 +100,7 @@ for lang in ("en","ko"):
  for batch in batches:
   batch_no+=1
   marker=f"ZXQPERSONADELIM{batch_no}ZXQ"
-  combined=("\\n"+marker+"\\n").join(batch)
+  combined=("\n"+marker+"\n").join(batch)
   translated=None
   try:
    translated=trans(combined,lang)
